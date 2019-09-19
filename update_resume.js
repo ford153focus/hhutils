@@ -27,7 +27,7 @@ function timerEnd(timerName) {
         //region Opening browser
         timerStart("Opening", "Opening browser");
         const browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             args: [
                 '--window-size=1600,900',
                 '--no-sandbox'
