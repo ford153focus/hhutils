@@ -37,7 +37,7 @@ async function processAccount(account) {
     //region Opening browser
     timerStart("Opening", "Opening browser");
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         args: [
             '--window-size=1900,1000',
             '--no-sandbox'
@@ -59,7 +59,7 @@ async function processAccount(account) {
     //region Open main page and auth
     timerStart("main page and auth", "Open main page and auth");
     try {
-        await page.goto('https://hh.ru/');
+        await page.goto('https://spb.hh.ru/account/login?backurl=%2F');
     } catch (e) {
         console.error(e);
         await browser.close();
@@ -69,7 +69,7 @@ async function processAccount(account) {
         console.log(account);
         document.querySelectorAll('input[name="username"]')[0].value = account.login;
         document.querySelectorAll('input[name="password"]')[0].value = account.password;
-        document.querySelector('form.login-form').submit()
+        document.querySelector('form').submit()
     }, account);
     try {
         await page.waitForNavigation({waitUntil: 'networkidle0'});
