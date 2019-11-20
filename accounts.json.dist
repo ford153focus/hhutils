@@ -1,16 +1,10 @@
 [
   {
     "login": "login@example.com",
-    "password": "pa$$w0rd!",
-    "resumes": [
-      "12345678901234567890123456789012345679"
-    ]
+    "password": "pa$$w0rd!"
   },
   {
     "login": "example@null.dev",
-    "password": "drowssap",
-    "resumes": [
-      "12345678901234567890123456789012345678"
-    ]
+    "password": "drowssap"
   }
 ]

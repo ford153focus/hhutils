@@ -1,28 +1,31 @@
-const puppeteer = require('puppeteer');
+#!/usr/bin/env node
+const debug = false;
+
 const fs = require('fs');
+const json5 = require('json5');
 const path = require('path');
+const puppeteer = require('puppeteer');
 
-let accounts = JSON.parse(fs.readFileSync(__dirname+path.sep+'accounts.json', 'utf8'));
-
-function hr () {
-    for (let i=0; i<80; i++) {
+// noinspection FunctionNamingConventionJS
+function hr() {
+    const lineLength = 80;
+    for (let i = 0; i < lineLength; i++) {
         process.stdout.write("=");
     }
     console.log();
 }
 
 function timerStart(timerName, message) {
-    hr();
-    console.time(timerName);
+    debug ? console.time(timerName) && hr() : false;
     console.log(message);
 }
 
-function timerEnd(timerName) {
-    console.timeEnd(timerName);
-    hr();
+function timerEnd(timerName, message = "") {
+    console.log(message);
+    debug ? console.timeEnd(timerName) && hr() : false;
 }
 
-function msleep (milliSeconds) {
+function msleep(milliSeconds) {
     Atomics.wait(
         new Int32Array(
             new SharedArrayBuffer(4)
@@ -33,9 +36,9 @@ function msleep (milliSeconds) {
     )
 }
 
-async function processAccount(account) {
-    //region Opening browser
+async function getBrowserAndPage() {
     timerStart("Opening", "Opening browser");
+
     const browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -53,13 +56,22 @@ async function processAccount(account) {
         width: windowWidth,
         height: windowHeight,
     });
-    timerEnd("Opening");
-    //endregion
 
-    //region Open main page and auth
+    timerEnd("Opening", "Browser opened");
+
+    return [browser, page];
+}
+
+async function authenticate(page, browser, account) {
     timerStart("main page and auth", "Open main page and auth");
     try {
-        await page.goto('https://spb.hh.ru/account/login?backurl=%2F');
+        await page.goto(
+            'https://spb.hh.ru/account/login?backurl=%2F',
+            {
+                timeout: 15300,
+                waitUntil: 'networkidle0'
+            }
+        );
     } catch (e) {
         console.error(e);
         await browser.close();
@@ -76,40 +88,52 @@ async function processAccount(account) {
     } catch (e) {
         console.trace(e);
     }
-    timerEnd("main page and auth");
-    //endregion
+    timerEnd("main page and auth", "Authenticated");
+}
 
-    //region Open resume and bump it
+async function bumpResume(page, browser) {
     timerStart("bump resume", "Open resume and bump it");
     try {
-        await page.goto('https://spb.hh.ru/applicant/resumes');
+        await page.goto(
+            'https://spb.hh.ru/applicant/resumes',
+            {
+                timeout: 15300,
+                waitUntil: 'networkidle0'
+            }
+        );
     } catch (e) {
         console.error(e);
         await browser.close();
         process.exit(1);
     }
+    // noinspection FunctionWithMultipleReturnPointsJS
     let resumeUpdated = await page.evaluate(() => {
-        if (document.querySelector('button[type="button"][data-qa="resume-update-button"]').disabled === false) {
-            document.querySelector('button[type="button"][data-qa="resume-update-button"]').click();
-            return true;
-        }
-        return false;
-
+        let updated = false;
+        document.querySelectorAll('button[type="button"][data-qa="resume-update-button"]').forEach((button) => {
+            if (button.disabled === false) {
+                button.click();
+                updated = true;
+            }
+        });
+        return updated;
     });
-    if (resumeUpdated) {
-        console.log("Resume updated");
-        msleep(1234);
-    } else {
-        console.log("There is no need to update resume");
-    }
+
+    // click on l108 is sending ajax request, wait to ensure is completed
+    resumeUpdated ? console.log("Resume updated") && msleep(1234) : console.log("There is no need to update resume");
 
     timerEnd("bump resume");
-    //endregion
+}
+
+async function processAccount(account) {
+    let [browser, page] = await getBrowserAndPage();
+    await authenticate(page, browser, account);
+    await bumpResume(page, browser);
 
     await browser.close();
 }
 
 (async () => {
+    let accounts = json5.parse(fs.readFileSync(__dirname + path.sep + 'accounts.json', 'utf8'));
     accounts.forEach(function (account) {
         processAccount(account);
     });
